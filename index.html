@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Ubicaciones en Tiempo Real</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .controls {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .control-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        input[type="text"] {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: #667eea;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.active {
+            background: #51cf66;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .map-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            height: 600px;
+        }
+
+        #map {
+            height: 100%;
+            border-radius: 10px;
+        }
+
+        .locations-list {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .locations-list h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.3rem;
+        }
+
+        .location-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .location-item:hover {
+            background: #f8f9fa;
+            transform: translateX(5px);
+        }
+
+        .location-info {
+            flex: 1;
+        }
+
+        .location-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .location-coords {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .location-time {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .map-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗺️ Mapa de Ubicaciones en Tiempo Real</h1>
+            <p>Rastrea y visualiza múltiples ubicaciones en tiempo real</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <button class="btn" onclick="addCurrentLocation()">📍 Agregar Ubicación Actual</button>
+                <button class="btn" onclick="toggleTracking()">🎯 Iniciar/Detener Seguimiento</button>
+                <button class="btn danger" onclick="clearAllLocations()">🗑️ Limpiar Todo</button>
+            </div>
+            
+            <div class="control-group">
+                <div class="input-group">
+                    <input type="text" id="locationName" placeholder="Nombre de la ubicación" maxlength="30">
+                    <button class="btn" onclick="addNamedLocation()">➕ Agregar con Nombre</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="status">
+                    <div class="status-indicator" id="statusIndicator"></div>
+                    <span id="statusText">Desconectado</span>
+                </div>
+                <span id="locationCount">Ubicaciones: 0</span>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+
+        <div class="locations-list">
+            <h3>📋 Lista de Ubicaciones</h3>
+            <div id="locationsList"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Variables globales
+        let map;
+        let locations = [];
+        let markers = [];
+        let isTracking = false;
+        let trackingInterval;
+        let watchId;
+
+        // Inicializar la aplicación
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            loadLocations();
+            updateLocationsList();
+            updateStatus();
+        });
+
+        // Inicializar el mapa
+        function initMap() {
+            map = L.map('map').setView([40.4168, -3.7038], 13); // Madrid por defecto
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Intentar centrar en la ubicación actual
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    map.setView([lat, lng], 15);
+                });
+            }
+        }
+
+        // Agregar ubicación actual
+        function addCurrentLocation() {
+            if (!navigator.geolocation) {
+                alert('La geolocalización no está soportada en este navegador');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const name = document.getElementById('locationName').value || `Ubicación ${locations.length + 1}`;
+                
+                addLocation(lat, lng, name);
+                document.getElementById('locationName').value = '';
+            }, function(error) {
+                alert('Error al obtener la ubicación: ' + error.message);
+            });
+        }
+
+        // Agregar ubicación con nombre personalizado
+        function addNamedLocation() {
+            const name = document.getElementById('locationName').value;
+            if (!name.trim()) {
+                alert('Por favor, ingresa un nombre para la ubicación');
+                return;
+            }
+            addCurrentLocation();
+        }
+
+        // Agregar ubicación al array y al mapa
+        function addLocation(lat, lng, name) {
+            const location = {
+                id: Date.now(),
+                name: name,
+                lat: lat,
+                lng: lng,
+                timestamp: new Date().toLocaleString()
+            };
+
+            locations.push(location);
+            saveLocations();
+            addMarker(location);
+            updateLocationsList();
+            updateMapView();
+        }
+
+        // Agregar marcador al mapa
+        function addMarker(location) {
+            const marker = L.marker([location.lat, location.lng])
+                .addTo(map)
+                .bindPopup(`
+                    <div style="text-align: center;">
+                        <strong>${location.name}</strong><br>
+                        <small>Lat: ${location.lat.toFixed(6)}</small><br>
+                        <small>Lng: ${location.lng.toFixed(6)}</small><br>
+                        <small>${location.timestamp}</small>
+                    </div>
+                `);
+
+            markers.push({
+                id: location.id,
+                marker: marker
+            });
+        }
+
+        // Alternar seguimiento en tiempo real
+        function toggleTracking() {
+            if (isTracking) {
+                stopTracking();
+            } else {
+                startTracking();
+            }
+        }
+
+        // Iniciar seguimiento
+        function startTracking() {
+            if (!navigator.geolocation) {
+                alert('La geolocalización no está soportada en este navegador');
+                return;
+            }
+
+            isTracking = true;
+            updateStatus();
+
+            // Actualizar ubicación cada 10 segundos
+            trackingInterval = setInterval(function() {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    const name = `Seguimiento ${new Date().toLocaleTimeString()}`;
+                    
+                    addLocation(lat, lng, name);
+                });
+            }, 10000);
+
+            // Seguimiento continuo
+            watchId = navigator.geolocation.watchPosition(function(position) {
+                // Actualizar vista del mapa a la ubicación actual
+                map.setView([position.coords.latitude, position.coords.longitude], map.getZoom());
+            });
+        }
+
+        // Detener seguimiento
+        function stopTracking() {
+            isTracking = false;
+            updateStatus();
+
+            if (trackingInterval) {
+                clearInterval(trackingInterval);
+            }
+
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+            }
+        }
+
+        // Limpiar todas las ubicaciones
+        function clearAllLocations() {
+            if (confirm('¿Estás seguro de que quieres eliminar todas las ubicaciones?')) {
+                locations = [];
+                markers.forEach(m => map.removeLayer(m.marker));
+                markers = [];
+                saveLocations();
+                updateLocationsList();
+            }
+        }
+
+        // Eliminar ubicación específica
+        function removeLocation(id) {
+            locations = locations.filter(loc => loc.id !== id);
+            
+            const markerIndex = markers.findIndex(m => m.id === id);
+            if (markerIndex !== -1) {
+                map.removeLayer(markers[markerIndex].marker);
+                markers.splice(markerIndex, 1);
+            }
+            
+            saveLocations();
+            updateLocationsList();
+        }
+
+        // Centrar mapa en ubicación
+        function centerOnLocation(lat, lng) {
+            map.setView([lat, lng], 16);
+        }
+
+        // Actualizar vista del mapa para mostrar todas las ubicaciones
+        function updateMapView() {
+            if (locations.length > 0) {
+                const group = new L.featureGroup(markers.map(m => m.marker));
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+        }
+
+        // Actualizar lista de ubicaciones
+        function updateLocationsList() {
+            const listContainer = document.getElementById('locationsList');
+            const countElement = document.getElementById('locationCount');
+            
+            countElement.textContent = `Ubicaciones: ${locations.length}`;
+
+            if (locations.length === 0) {
+                listContainer.innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">No hay ubicaciones guardadas</p>';
+                return;
+            }
+
+            listContainer.innerHTML = locations.map(location => `
+                <div class="location-item">
+                    <div class="location-info">
+                        <div class="location-name">${location.name}</div>
+                        <div class="location-coords">
+                            ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}
+                        </div>
+                        <div class="location-time">${location.timestamp}</div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-small" onclick="centerOnLocation(${location.lat}, ${location.lng})">
+                            🎯 Ver
+                        </button>
+                        <button class="btn btn-small danger" onclick="removeLocation(${location.id})">
+                            ❌
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Actualizar estado de la aplicación
+        function updateStatus() {
+            const indicator = document.getElementById('statusIndicator');
+            const text = document.getElementById('statusText');
+
+            if (isTracking) {
+                indicator.classList.add('active');
+                text.textContent = 'Seguimiento Activo';
+            } else {
+                indicator.classList.remove('active');
+                text.textContent = 'Seguimiento Inactivo';
+            }
+        }
+
+        // Guardar ubicaciones en localStorage
+        function saveLocations() {
+            localStorage.setItem('realTimeLocations', JSON.stringify(locations));
+        }
+
+        // Cargar ubicaciones desde localStorage
+        function loadLocations() {
+            const saved = localStorage.getItem('realTimeLocations');
+            if (saved) {
+                locations = JSON.parse(saved);
+                locations.forEach(location => addMarker(location));
+                if (locations.length > 0) {
+                    updateMapView();
+                }
+            }
+        }
+
+        // Manejar errores de geolocalización
+        window.addEventListener('error', function(e) {
+            console.error('Error en la aplicación:', e.error);
+        });
+
+        // Actualizar automáticamente cada minuto
+        setInterval(function() {
+            if (locations.length > 0) {
+                updateLocationsList();
+            }
+        }, 60000);
+    </script>
+</body>
+</html>
